@@ -9,15 +9,22 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview",
-    "test": "playwright test"
+    "preview": "node build",
+    "prepare": "svelte-kit sync",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
-    "@sveltejs/adapter-auto": "^3",
-    "@sveltejs/kit": "^2",
     "@playwright/test": "^1.47",
+    "@sveltejs/adapter-node": "^5",
+    "@sveltejs/kit": "^2",
+    "@sveltejs/vite-plugin-svelte": "^4",
+    "@types/node": "^22",
     "svelte": "^5",
+    "svelte-check": "^4",
     "typescript": "^5",
-    "vite": "^5"
+    "vite": "^5",
+    "vitest": "^2"
   }
 }

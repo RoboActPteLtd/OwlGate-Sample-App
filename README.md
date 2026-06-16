@@ -18,8 +18,12 @@ This is the *specimen*, not the product. Keep it small.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
-npm run test       # the local test suite
+npm run dev        # dev server (http://localhost:5173)
+npm run check      # svelte-check type-check
+npm run build      # production build (adapter-node)
+npm run preview    # run the built server (node build, http://localhost:3000)
+npm test           # Vitest unit tests
+npm run test:e2e   # Playwright e2e (the fragile UI suite — OwlGate's heal target)
 ```
 
 ## The point: seeded fragility

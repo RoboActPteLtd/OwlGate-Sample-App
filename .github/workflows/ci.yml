@@ -8,21 +8,22 @@ on:
 permissions:
   contents: read
 
-# Minimal while the app is a scaffold: validate the manifest and that the declared
-# dependency tree resolves. Build / Playwright e2e get added once the SvelteKit app
-# is fleshed out.
 jobs:
-  validate:
+  build-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Validate package.json
-        run: node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json OK')"
-      - name: Resolve dependency tree
-        run: npm install --package-lock-only --no-audit --no-fund --legacy-peer-deps
+          cache: npm
+      - run: npm ci
+      - name: Type-check
+        run: npm run check
+      - name: Build (adapter-node)
+        run: npm run build
+      - name: Unit tests
+        run: npm test
 
   secret-scan:
     runs-on: ubuntu-latest

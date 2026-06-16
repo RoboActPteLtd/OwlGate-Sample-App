@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial scaffold of the OwlGate sample app (System Under Test).
 - `FRAGILITY.md` documenting the seeded defects and the capability each exercises.
-- Minimal GitHub Actions CI — manifest and dependency-resolution validation; gitleaks secret scan.
+- Real, building **SvelteKit app** (adapter-node, runnable for Test Cloud): home +
+  contact form, with email validation extracted to `$lib/validation` and unit-tested
+  with **Vitest** (6 tests); type-checked clean with `svelte-check`; Playwright e2e
+  config for the fragile UI suite (run separately, not in unit CI).
+- GitHub Actions CI — type-check + build + Vitest unit tests; gitleaks secret scan.
 
 ### Changed
 
