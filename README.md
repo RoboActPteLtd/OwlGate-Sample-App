@@ -29,4 +29,4 @@ flaky detection; validation change → risk + gate).
 
 ## License
 
-[MIT](./LICENSE)
+[Apache 2.0](./LICENSE)

@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "OwlGate System Under Test — a small contact-form app with deliberate fragility.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": "Yeo Wen Qin <yeo_dev@protonmail.com>",
   "type": "module",
   "scripts": {
