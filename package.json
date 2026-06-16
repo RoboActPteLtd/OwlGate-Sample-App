@@ -1,0 +1,23 @@
+{
+  "name": "owlgate-sample-app",
+  "version": "0.0.1",
+  "private": true,
+  "description": "OwlGate System Under Test — a small contact-form app with deliberate fragility.",
+  "license": "MIT",
+  "author": "Yeo Wen Qin <yeo_dev@protonmail.com>",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^3",
+    "@sveltejs/kit": "^2",
+    "@playwright/test": "^1.47",
+    "svelte": "^5",
+    "typescript": "^5",
+    "vite": "^5"
+  }
+}
