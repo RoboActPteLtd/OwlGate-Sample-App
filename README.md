@@ -1,5 +1,7 @@
 # owlgate-sample-app
 
+[![CI](https://github.com/RoboActPteLtd/OwlGate-Sample-App/actions/workflows/ci.yml/badge.svg)](https://github.com/RoboActPteLtd/OwlGate-Sample-App/actions/workflows/ci.yml)
+
 The **System Under Test** for OwlGate. A deliberately small web app — a contact
 form backed by a tiny API — seeded with **intentional fragility** so every OwlGate
 capability has something real to act on during the demo.

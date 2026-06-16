@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial scaffold of the OwlGate sample app (System Under Test).
 - `FRAGILITY.md` documenting the seeded defects and the capability each exercises.
+- Minimal GitHub Actions CI — manifest and dependency-resolution validation.
 
 ### Changed
 
