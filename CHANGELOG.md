@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with **Vitest** (6 tests); type-checked clean with `svelte-check`; Playwright e2e
   config for the fragile UI suite (run separately, not in unit CI).
 - GitHub Actions CI — type-check + build + Vitest unit tests; gitleaks secret scan.
+- **OwlGate release gate** (`.github/workflows/owlgate-gate.yml` + `.github/owlgate/gate.sh`)
+  — on every PR, computes the diff and sends it to the OwlGate coded agent on UiPath
+  (client-credentials auth), polls the job, and **fails the check on a no-go** so the
+  merge is blocked. Skips neutrally until the UiPath secrets are set. See
+  [`OWLGATE-CI.md`](./OWLGATE-CI.md).
 
 ### Changed
 

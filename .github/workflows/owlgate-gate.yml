@@ -1,0 +1,54 @@
+name: OwlGate release gate
+
+# On every pull request: send the change to the OwlGate agent on UiPath and let
+# its go / no-go verdict gate the merge. Make this check "required" in branch
+# protection to actually block merges on a no-go.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  UIPATH_BASE: https://staging.uipath.com
+  UIPATH_ACCOUNT: hackathon26_631
+  UIPATH_TENANT: DefaultTenant
+  UIPATH_FOLDER: Shared
+  UIPATH_PROCESS: owlgate-gate
+  UIPATH_SCOPE: OR.Jobs
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Don't block PRs before the UiPath credentials are configured.
+      - name: Check configuration
+        id: cfg
+        env:
+          CID: ${{ secrets.UIPATH_CLIENT_ID }}
+        run: |
+          if [ -z "$CID" ]; then
+            echo "::notice::OwlGate secrets not set — skipping the gate (neutral pass)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build the diff payload
+        if: steps.cfg.outputs.ready == 'true'
+        run: |
+          git diff --numstat "origin/${{ github.base_ref }}...HEAD" \
+            | awk '{a=($1=="-"?0:$1); d=($2=="-"?0:$2); printf "{\"path\":\"%s\",\"lines\":%d}\n",$3,a+d}' \
+            | jq -s '{diff: .}' > diff.json
+          echo "Changed files sent to OwlGate:"; cat diff.json
+
+      - name: Run the OwlGate gate
+        if: steps.cfg.outputs.ready == 'true'
+        env:
+          UIPATH_CLIENT_ID: ${{ secrets.UIPATH_CLIENT_ID }}
+          UIPATH_CLIENT_SECRET: ${{ secrets.UIPATH_CLIENT_SECRET }}
+        run: bash .github/owlgate/gate.sh diff.json
