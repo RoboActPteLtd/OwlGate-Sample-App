@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (client-credentials auth), polls the job, and **fails the check on a no-go** so the
   merge is blocked. Skips neutrally until the UiPath secrets are set. See
   [`OWLGATE-CI.md`](./OWLGATE-CI.md).
+- **Auth endpoint + risk catalogue for a realistic block demo** — a toy `/api/login`
+  (`src/routes/api/login`, `src/lib/auth.ts`) and `owlgate-catalogue.json` that tags
+  the login area `auth` (severity 1.0). The gate now sends this catalogue with the
+  diff, so **any change to the login code trips a no-go (needs human)** and blocks the
+  PR — verified by a live job (risk 0.53). Step-by-step in [`DEMO.md`](./DEMO.md).
 
 ### Changed
 

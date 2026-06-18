@@ -10,8 +10,10 @@ title = "OwlGate sample-app gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "OwlGate gate files contain only env-var references + a release id, no real secrets."
+description = "OwlGate gate files (env-var refs + release id) and the toy demo auth credential — no real secrets."
 paths = [
   '''\.github/owlgate/gate\.sh''',
   '''\.github/workflows/owlgate-gate\.yml''',
+  '''src/lib/auth\.ts''',
+  '''tests/auth\.test\.ts''',
 ]

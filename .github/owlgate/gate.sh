@@ -50,8 +50,19 @@ TOKEN=$(printf '%s' "$body" | jq -r '.access_token // empty')
 HDR=(-H "Authorization: Bearer $TOKEN" -H "X-UIPATH-OrganizationUnitId: $FOLDER_ID")
 echo "authenticated"
 
-# 2. start the gate job, passing the diff as input arguments (a JSON string)
-START_BODY=$(jq -n --arg rk "$RKEY" --arg input "$(jq -c . "$DIFF_FILE")" \
+# 2. build the agent input: the diff + (if present) this app's test catalogue,
+#    so file→suite risk mapping (incl. the high-severity `auth` suite) travels with
+#    the request — no agent redeploy needed when the catalogue changes.
+CAT_FILE="${UIPATH_CATALOGUE_FILE:-owlgate-catalogue.json}"
+if [ -f "$CAT_FILE" ]; then
+  INPUT_JSON=$(jq -c --slurpfile c "$CAT_FILE" '. + {catalogue: $c[0].suites}' "$DIFF_FILE")
+  echo "using catalogue $CAT_FILE ($(jq '.suites | length' "$CAT_FILE") suites)"
+else
+  INPUT_JSON=$(jq -c . "$DIFF_FILE")
+fi
+
+# start the gate job, passing the input as a JSON string
+START_BODY=$(jq -n --arg rk "$RKEY" --arg input "$INPUT_JSON" \
   '{startInfo:{ReleaseKey:$rk,Strategy:"ModernJobsCount",JobsCount:1,InputArguments:$input}}')
 JID=$(req "start-job" POST "$ORCH/odata/Jobs/UiPath.Server.Configuration.OData.StartJobs" "$START_BODY" | jq -r '.value[0].Id // empty')
 [ -n "$JID" ] || { echo "::error::no job id returned"; exit 1; }
