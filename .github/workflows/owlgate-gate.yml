@@ -38,13 +38,11 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build the diff payload
+      - name: Build the diff payload (with hunks)
         if: steps.cfg.outputs.ready == 'true'
         run: |
-          git diff --numstat "origin/${{ github.base_ref }}...HEAD" \
-            | awk '{a=($1=="-"?0:$1); d=($2=="-"?0:$2); printf "{\"path\":\"%s\",\"lines\":%d}\n",$3,a+d}' \
-            | jq -s '{diff: .}' > diff.json
-          echo "Changed files sent to OwlGate:"; cat diff.json
+          python3 .github/owlgate/build-diff.py "origin/${{ github.base_ref }}...HEAD" > diff.json
+          echo "Changed code sent to OwlGate:"; cat diff.json
 
       - name: Run the OwlGate gate
         if: steps.cfg.outputs.ready == 'true'

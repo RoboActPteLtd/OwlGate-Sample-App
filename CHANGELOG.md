@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the login area `auth` (severity 1.0). The gate now sends this catalogue with the
   diff, so **any change to the login code trips a no-go (needs human)** and blocks the
   PR — verified by a live job (risk 0.53). Step-by-step in [`DEMO.md`](./DEMO.md).
+- **Line/function-level review targets** — the gate now sends the diff **hunks**
+  (`.github/owlgate/build-diff.py` extracts the changed line ranges + enclosing
+  function from `git diff`), so OwlGate names the **exact function + lines** to
+  review. They're printed in the gate log and added to the PR check summary.
 
 ### Changed
 

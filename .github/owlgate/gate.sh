@@ -88,6 +88,16 @@ VERDICT=$(printf '%s' "$OUT" | jq -r '.verdict // "unknown"')
 NEEDS=$(printf '%s' "$OUT" | jq -r '.needs_human // false')
 echo "OwlGate verdict: $VERDICT  (needs_human=$NEEDS)"
 
+# The exact code OwlGate wants a human to look at (function + line range).
+TARGETS=$(printf '%s' "$OUT" | jq -r '.report.risk.review_targets // [] | .[] | "  • \(.function)  [\(.file):\(.lines)]"')
+if [ -n "$TARGETS" ]; then
+  echo "Review these:"
+  printf '%s\n' "$TARGETS"
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    { echo "### 🦉 OwlGate — code to review"; printf '%s\n' "$TARGETS" | sed 's/^  • /- /'; } >> "$GITHUB_STEP_SUMMARY"
+  fi
+fi
+
 if [ "$VERDICT" = "go" ] && [ "$NEEDS" != "true" ]; then
   echo "✅ OwlGate: GO — safe to merge."
   exit 0
