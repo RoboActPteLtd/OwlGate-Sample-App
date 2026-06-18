@@ -21,13 +21,13 @@ describe("validateContact", () => {
     expect(validateContact({ name: "Ada", email: "ada@example.com" })).toBeNull();
   });
 
+  // Assert that an error mentioning the field is returned — not the exact copy —
+  // so rewording a message (capitalisation, punctuation) doesn't break the test.
   it("requires a name", () => {
-    expect(validateContact({ email: "ada@example.com" })).toBe("name is required");
+    expect(validateContact({ email: "ada@example.com" })).toMatch(/name/i);
   });
 
   it("requires a valid email", () => {
-    expect(validateContact({ name: "Ada", email: "a@b" })).toBe(
-      "a valid email is required",
-    );
+    expect(validateContact({ name: "Ada", email: "a@b" })).toMatch(/email/i);
   });
 });
