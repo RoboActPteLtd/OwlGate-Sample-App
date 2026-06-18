@@ -36,7 +36,10 @@ keeps working across redeploys.
    require the **"OwlGate release gate / gate"** status check.
 
 Tenant config lives as plain `env:` in the workflow (`UIPATH_ACCOUNT`,
-`UIPATH_TENANT`, `UIPATH_FOLDER`, `UIPATH_PROCESS`) — edit there if they change.
+`UIPATH_TENANT`, `UIPATH_FOLDER_ID`, `UIPATH_RELEASE_KEY`). The folder id + release
+key are used directly so the app needs **only the `OR.Jobs` scope** (no
+`OR.Folders.Read`/`OR.Execution.Read`). **If you redeploy the agent, update
+`UIPATH_RELEASE_KEY`** (`uip or processes list --folder-path Shared` → `Key`).
 
 > Before the secrets are set, the workflow **skips** (neutral pass) so it never
 > blocks PRs prematurely.
@@ -50,8 +53,12 @@ Tenant config lives as plain `env:` in the workflow (`UIPATH_ACCOUNT`,
   real red/green from actual tests needs Test Manager + a real `TestRunner`
   implementation wired in (the interface already exists in `owlgate-agents`).
 - **First PR is the live test.** Watch the Action logs. Common fixes:
-  - `no access_token` → the app has no `OR.Jobs` *Application* scope, or the wrong
-    identity URL.
-  - `403` on folders/releases/jobs → grant the External Application access to the
-    tenant / `Shared` folder.
-  - `process 'owlgate-gate' not found` → it isn't deployed to `Shared`.
+  - `auth failed` / `no access_token` → the app has no `OR.Jobs` *Application*
+    scope, or the wrong identity URL.
+  - `start-job failed (HTTP 403)` → the External Application is authenticated but
+    not authorised in the `Shared` folder — grant it access (Tenant → Manage Access,
+    or add it to the folder).
+  - `start-job failed (HTTP 404)` → the `UIPATH_RELEASE_KEY` is stale (you redeployed);
+    refresh it from `uip or processes list --folder-path Shared`.
+  - Verbose HTTP status + the UiPath error body are printed on any failure, so the
+    Action log tells you exactly which call broke.

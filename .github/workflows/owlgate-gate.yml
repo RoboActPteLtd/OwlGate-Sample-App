@@ -13,8 +13,8 @@ env:
   UIPATH_BASE: https://staging.uipath.com
   UIPATH_ACCOUNT: hackathon26_631
   UIPATH_TENANT: DefaultTenant
-  UIPATH_FOLDER: Shared
-  UIPATH_PROCESS: owlgate-gate
+  UIPATH_FOLDER_ID: "3083518"                              # Shared folder
+  UIPATH_RELEASE_KEY: 50B79B66-CB76-4A8F-98C1-DF55264D85A2 # owlgate-gate (re-check if you redeploy)
   UIPATH_SCOPE: OR.Jobs
 
 jobs:
