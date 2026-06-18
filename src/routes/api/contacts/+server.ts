@@ -11,3 +11,4 @@ export const POST: RequestHandler = async ({ request }) => {
   // The sample app does not persist anything — it only needs to behave.
   return json({ ok: true }, { status: 201 });
 };
+// owlgate gate self-test (remove me)
