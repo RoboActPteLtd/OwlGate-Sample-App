@@ -19,10 +19,10 @@ export interface ContactInput {
 /** Returns an error message, or `null` when the contact is valid. */
 export function validateContact(input: ContactInput): string | null {
   if (!input.name || typeof input.name !== "string") {
-    return "name is required";
+    return "Name is required.";
   }
   if (!isValidEmail(input.email)) {
-    return "a valid email is required";
+    return "A valid email is required.";
   }
   return null;
 }
