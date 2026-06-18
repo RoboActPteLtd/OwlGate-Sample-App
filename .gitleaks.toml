@@ -1,0 +1,17 @@
+# gitleaks config — keep all default rules, but allowlist the OwlGate gate files.
+#
+# These reference UiPath client_id/secret as env-var NAMES (the real values are
+# injected from GitHub Secrets at runtime) and the process release key (a resource
+# identifier, not a credential — useless without an authenticated token). No real
+# secrets are committed.
+title = "OwlGate sample-app gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "OwlGate gate files contain only env-var references + a release id, no real secrets."
+paths = [
+  '''\.github/owlgate/gate\.sh''',
+  '''\.github/workflows/owlgate-gate\.yml''',
+]
