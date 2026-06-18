@@ -4,10 +4,9 @@
 # Sends the PR diff to the OwlGate coded agent on UiPath, waits for the verdict,
 # and exits non-zero on a no-go (so the PR check fails and the merge is blocked).
 #
-# Inputs: $1 = path to a JSON file shaped like {"diff":[{"path":..,"lines":..}]}
-# Env (from the workflow):
-#   UIPATH_CLIENT_ID / UIPATH_CLIENT_SECRET  (GitHub secrets)
-#   UIPATH_BASE / UIPATH_ACCOUNT / UIPATH_TENANT / UIPATH_FOLDER / UIPATH_PROCESS / UIPATH_SCOPE
+# Uses the folder id + release key directly so the only scope needed is OR.Jobs
+# (no OR.Folders.Read / OR.Execution.Read). Update UIPATH_RELEASE_KEY if you
+# redeploy the agent. Inputs: $1 = diff json like {"diff":[{"path":..,"lines":..}]}.
 #
 set -euo pipefail
 
@@ -17,62 +16,65 @@ DIFF_FILE="${1:?usage: gate.sh <diff.json>}"
 BASE="${UIPATH_BASE:-https://staging.uipath.com}"
 ACCT="${UIPATH_ACCOUNT:?missing UIPATH_ACCOUNT}"
 TEN="${UIPATH_TENANT:?missing UIPATH_TENANT}"
-FOLDER="${UIPATH_FOLDER:-Shared}"
-PROCESS="${UIPATH_PROCESS:-owlgate-gate}"
+FOLDER_ID="${UIPATH_FOLDER_ID:?missing UIPATH_FOLDER_ID}"
+RKEY="${UIPATH_RELEASE_KEY:?missing UIPATH_RELEASE_KEY}"
 SCOPE="${UIPATH_SCOPE:-OR.Jobs}"
 ORCH="$BASE/$ACCT/$TEN/orchestrator_"
 
-die() { echo "::error::OwlGate gate: $*"; exit 1; }
+# curl that captures body + HTTP status; on >=400 it prints the UiPath error.
+req() { # req DESC METHOD URL [json-body]
+  local desc="$1" method="$2" url="$3" data="${4:-}"
+  local args=(-sS -w $'\n%{http_code}' -X "$method" "$url" "${HDR[@]}")
+  [ -n "$data" ] && args+=(-H "Content-Type: application/json" -d "$data")
+  local resp code body
+  resp=$(curl "${args[@]}")
+  code=$(printf '%s' "$resp" | tail -n1)
+  body=$(printf '%s' "$resp" | sed '$d')
+  if [ "$code" -ge 400 ] 2>/dev/null; then
+    echo "::error::OwlGate $desc failed (HTTP $code): $(printf '%s' "$body" | head -c 400)"
+    exit 1
+  fi
+  printf '%s' "$body"
+}
 
-echo "::group::Authenticate (client credentials)"
-TOKEN=$(curl -sf "$BASE/identity_/connect/token" \
+# 1. authenticate (client credentials — secrets go in the form body, never the URL)
+resp=$(curl -sS -w $'\n%{http_code}' "$BASE/identity_/connect/token" \
   -d grant_type=client_credentials \
-  -d client_id="$UIPATH_CLIENT_ID" \
-  -d client_secret="$UIPATH_CLIENT_SECRET" \
-  -d scope="$SCOPE" | jq -r '.access_token // empty') \
-  || die "token request failed (check the identity URL / app credentials)"
-[ -n "$TOKEN" ] || die "no access_token returned (check the app's Application scopes)"
-AUTH=(-H "Authorization: Bearer $TOKEN")
+  --data-urlencode "client_id=$UIPATH_CLIENT_ID" \
+  --data-urlencode "client_secret=$UIPATH_CLIENT_SECRET" \
+  --data-urlencode "scope=$SCOPE")
+code=$(printf '%s' "$resp" | tail -n1); body=$(printf '%s' "$resp" | sed '$d')
+[ "$code" = "200" ] || { echo "::error::auth failed (HTTP $code): $(printf '%s' "$body" | head -c 300)"; exit 1; }
+TOKEN=$(printf '%s' "$body" | jq -r '.access_token // empty')
+[ -n "$TOKEN" ] || { echo "::error::no access_token returned"; exit 1; }
+HDR=(-H "Authorization: Bearer $TOKEN" -H "X-UIPATH-OrganizationUnitId: $FOLDER_ID")
 echo "authenticated"
-echo "::endgroup::"
 
-# Resolve the Shared folder id (needed as the OrganizationUnit header).
-FID=$(curl -sf -G "${AUTH[@]}" "$ORCH/odata/Folders" \
-  --data-urlencode "\$filter=FullyQualifiedName eq '$FOLDER'" \
-  | jq -r '.value[0].Id // empty') || die "could not list folders (token scope?)"
-[ -n "$FID" ] || die "folder '$FOLDER' not found"
-FH=(-H "X-UIPATH-OrganizationUnitId: $FID")
-
-# Resolve the release key for the process by name (robust to redeploys).
-RKEY=$(curl -sf -G "${AUTH[@]}" "${FH[@]}" "$ORCH/odata/Releases" \
-  --data-urlencode "\$filter=Name eq '$PROCESS'" \
-  | jq -r '.value[0].Key // empty') || die "could not list releases"
-[ -n "$RKEY" ] || die "process '$PROCESS' not found in '$FOLDER' (is it deployed?)"
-
-# Start the job, passing the diff as the agent's input arguments (a JSON string).
-BODY=$(jq -n --arg rk "$RKEY" --arg input "$(jq -c . "$DIFF_FILE")" \
+# 2. start the gate job, passing the diff as input arguments (a JSON string)
+START_BODY=$(jq -n --arg rk "$RKEY" --arg input "$(jq -c . "$DIFF_FILE")" \
   '{startInfo:{ReleaseKey:$rk,Strategy:"ModernJobsCount",JobsCount:1,InputArguments:$input}}')
-JID=$(curl -sf "${AUTH[@]}" "${FH[@]}" -H "Content-Type: application/json" \
-  -X POST "$ORCH/odata/Jobs/UiPath.Server.Configuration.OData.StartJobs" \
-  -d "$BODY" | jq -r '.value[0].Id // empty') || die "StartJobs failed"
-[ -n "$JID" ] || die "no job id returned from StartJobs"
+JID=$(req "start-job" POST "$ORCH/odata/Jobs/UiPath.Server.Configuration.OData.StartJobs" "$START_BODY" | jq -r '.value[0].Id // empty')
+[ -n "$JID" ] || { echo "::error::no job id returned"; exit 1; }
 echo "started job $JID — waiting for the verdict..."
 
-# Poll until the job reaches a terminal state.
-STATE=""
-J="{}"
+# 3. poll until terminal
+STATE=""; JOB="{}"
 for _ in $(seq 1 60); do
-  J=$(curl -sf "${AUTH[@]}" "${FH[@]}" "$ORCH/odata/Jobs($JID)") || die "could not read job"
-  STATE=$(echo "$J" | jq -r '.State')
+  JOB=$(req "read-job" GET "$ORCH/odata/Jobs($JID)")
+  STATE=$(printf '%s' "$JOB" | jq -r '.State')
   if [[ "$STATE" =~ ^(Successful|Faulted|Stopped)$ ]]; then break; fi
   sleep 5
 done
 
-[ "$STATE" = "Successful" ] || die "job did not succeed (state=$STATE)"
+if [ "$STATE" != "Successful" ]; then
+  echo "::error::job did not succeed (state=$STATE): $(printf '%s' "$JOB" | jq -r '.Info // empty')"
+  exit 1
+fi
 
-OUT=$(echo "$J" | jq -r '.OutputArguments // "{}"')
-VERDICT=$(echo "$OUT" | jq -r '.verdict // "unknown"')
-NEEDS=$(echo "$OUT" | jq -r '.needs_human // false')
+# 4. read the verdict and gate the PR
+OUT=$(printf '%s' "$JOB" | jq -r '.OutputArguments // "{}"')
+VERDICT=$(printf '%s' "$OUT" | jq -r '.verdict // "unknown"')
+NEEDS=$(printf '%s' "$OUT" | jq -r '.needs_human // false')
 echo "OwlGate verdict: $VERDICT  (needs_human=$NEEDS)"
 
 if [ "$VERDICT" = "go" ] && [ "$NEEDS" != "true" ]; then
