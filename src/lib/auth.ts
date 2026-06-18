@@ -15,7 +15,7 @@ export function checkCredentials(input: Credentials): boolean {
   return (
     typeof input.username === "string" &&
     typeof input.password === "string" &&
-    input.username === DEMO_USER &&
+    input.username.trim() === DEMO_USER &&
     input.password === DEMO_PASSWORD
   );
 }
