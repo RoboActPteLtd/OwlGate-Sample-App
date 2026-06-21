@@ -40,8 +40,13 @@ jobs:
 
       - name: Build the diff payload (with hunks)
         if: steps.cfg.outputs.ready == 'true'
+        # Pass the PR base branch through the environment rather than expanding
+        # ${{ github.base_ref }} straight into the shell, so a branch name can never
+        # be interpreted as part of the command (GitHub Actions template injection).
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          python3 .github/owlgate/build-diff.py "origin/${{ github.base_ref }}...HEAD" > diff.json
+          python3 .github/owlgate/build-diff.py "origin/${BASE_REF}...HEAD" > diff.json
           echo "Changed code sent to OwlGate:"; cat diff.json
 
       - name: Run the OwlGate gate

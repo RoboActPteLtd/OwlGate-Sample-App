@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Harden the OwlGate gate workflow against GitHub Actions template injection: the PR
+  base branch is now passed via a `BASE_REF` environment variable instead of
+  expanding `${{ github.base_ref }}` directly into the `run` shell command.
+
 ### Added
 
 - Initial scaffold of the OwlGate sample app (System Under Test).
