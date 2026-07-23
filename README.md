@@ -36,3 +36,8 @@ flaky detection; validation change → risk + gate).
 ## License
 
 [Apache 2.0](./LICENSE)
+
+## Running locally
+
+The dev server listens on port 3000 by default (`npm run dev`). Set `PORT` if you
+need a different one.
