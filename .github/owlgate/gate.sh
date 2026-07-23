@@ -88,19 +88,44 @@ VERDICT=$(printf '%s' "$OUT" | jq -r '.verdict // "unknown"')
 NEEDS=$(printf '%s' "$OUT" | jq -r '.needs_human // false')
 echo "OwlGate verdict: $VERDICT  (needs_human=$NEEDS)"
 
+# Decide the outcome before printing anything, because the gate has *three* states,
+# not two: a change can be low-risk on its own and still be held for a person. Saying
+# "go ... blocking this PR" in that case reads like a bug — name the state instead.
+if [ "$VERDICT" = "go" ] && [ "$NEEDS" != "true" ]; then
+  ICON="✅"; HEADLINE="GO — safe to merge"; EXIT_CODE=0
+  DETAIL="No blocking issues, and no human sign-off required."
+elif [ "$NEEDS" = "true" ]; then
+  ICON="⏸️"; HEADLINE="HOLD — human sign-off required"; EXIT_CODE=1
+  DETAIL="This change touches a high-severity area, so OwlGate will not decide alone. Merge stays blocked until a person approves or overrides. (Risk verdict: \`$VERDICT\`.)"
+else
+  ICON="❌"; HEADLINE="NO-GO — blocking"; EXIT_CODE=1
+  DETAIL="The gate returned \`$VERDICT\`."
+fi
+
 # The exact code OwlGate wants a human to look at (function + line range).
 TARGETS=$(printf '%s' "$OUT" | jq -r '.report.risk.review_targets // [] | .[] | "  • \(.function)  [\(.file):\(.lines)]"')
+TARGETS_MD=$(printf '%s' "$OUT" | jq -r '.report.risk.review_targets // [] | .[] | "- `\(.function)` — `\(.file):\(.lines)`"')
+
+# Verdict headline first, then the code to review — this block is what a reviewer
+# actually reads on the PR page, so lead with the decision.
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+  {
+    echo "### $ICON OwlGate: $HEADLINE"
+    echo ""
+    echo "$DETAIL"
+    if [ -n "$TARGETS_MD" ]; then
+      echo ""
+      echo "**Code to review**"
+      echo ""
+      printf '%s\n' "$TARGETS_MD"
+    fi
+  } >> "$GITHUB_STEP_SUMMARY"
+fi
+
 if [ -n "$TARGETS" ]; then
   echo "Review these:"
   printf '%s\n' "$TARGETS"
-  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-    { echo "### 🦉 OwlGate — code to review"; printf '%s\n' "$TARGETS" | sed 's/^  • /- /'; } >> "$GITHUB_STEP_SUMMARY"
-  fi
 fi
 
-if [ "$VERDICT" = "go" ] && [ "$NEEDS" != "true" ]; then
-  echo "✅ OwlGate: GO — safe to merge."
-  exit 0
-fi
-echo "❌ OwlGate: $VERDICT (needs_human=$NEEDS) — blocking this PR."
-exit 1
+echo "$ICON OwlGate: $HEADLINE"
+exit "$EXIT_CODE"
