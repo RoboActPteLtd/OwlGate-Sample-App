@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The gate now sends `escalate: true`, so a held PR actually records a **human-approval
+  request** in the `owlgate-changes` Orchestrator queue. Previously the agent returned
+  `skipped: escalation disabled` and a blocked PR left no approval record anywhere — the
+  merge was stopped but nobody was asked to decide, which defeated the point of the human
+  gate. The check now also prints the escalation result and says so on the PR page.
+
 ### Changed
 
 - The gate check now reports **three** outcomes instead of two — `GO`, `HOLD — human
