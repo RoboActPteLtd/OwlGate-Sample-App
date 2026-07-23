@@ -36,3 +36,5 @@ flaky detection; validation change → risk + gate).
 ## License
 
 [Apache 2.0](./LICENSE)
+
+<!-- OwlGate finale demo: benign docs-only change, expected verdict GO. -->
