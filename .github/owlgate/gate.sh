@@ -53,12 +53,18 @@ echo "authenticated"
 # 2. build the agent input: the diff + (if present) this app's test catalogue,
 #    so file→suite risk mapping (incl. the high-severity `auth` suite) travels with
 #    the request — no agent redeploy needed when the catalogue changes.
+#
+#    `escalate: true` asks the agent to record a durable human-approval request when
+#    the verdict needs sign-off. Without it the agent returns "skipped: escalation
+#    disabled" and a held PR leaves no approval record anywhere — the merge is blocked
+#    but nobody is actually asked to decide. The agent only escalates when
+#    needs_human is true, so this is a no-op for a clean PR.
 CAT_FILE="${UIPATH_CATALOGUE_FILE:-owlgate-catalogue.json}"
 if [ -f "$CAT_FILE" ]; then
-  INPUT_JSON=$(jq -c --slurpfile c "$CAT_FILE" '. + {catalogue: $c[0].suites}' "$DIFF_FILE")
+  INPUT_JSON=$(jq -c --slurpfile c "$CAT_FILE" '. + {catalogue: $c[0].suites, escalate: true}' "$DIFF_FILE")
   echo "using catalogue $CAT_FILE ($(jq '.suites | length' "$CAT_FILE") suites)"
 else
-  INPUT_JSON=$(jq -c . "$DIFF_FILE")
+  INPUT_JSON=$(jq -c '. + {escalate: true}' "$DIFF_FILE")
 fi
 
 # start the gate job, passing the input as a JSON string
@@ -86,7 +92,12 @@ fi
 OUT=$(printf '%s' "$JOB" | jq -r '.OutputArguments // "{}"')
 VERDICT=$(printf '%s' "$OUT" | jq -r '.verdict // "unknown"')
 NEEDS=$(printf '%s' "$OUT" | jq -r '.needs_human // false')
+# What the agent did about the human gate: "queued" means a durable approval record
+# exists in the owlgate-changes queue; "action-center-failed" is expected on tenants
+# without the Actions service and is not fatal.
+ESCALATION=$(printf '%s' "$OUT" | jq -r '.escalation // "n/a"')
 echo "OwlGate verdict: $VERDICT  (needs_human=$NEEDS)"
+echo "Human gate: $ESCALATION"
 
 # Decide the outcome before printing anything, because the gate has *three* states,
 # not two: a change can be low-risk on its own and still be held for a person. Saying
@@ -97,6 +108,9 @@ if [ "$VERDICT" = "go" ] && [ "$NEEDS" != "true" ]; then
 elif [ "$NEEDS" = "true" ]; then
   ICON="⏸️"; HEADLINE="HOLD — human sign-off required"; EXIT_CODE=1
   DETAIL="This change touches a high-severity area, so OwlGate will not decide alone. Merge stays blocked until a person approves or overrides. (Risk verdict: \`$VERDICT\`.)"
+  case "$ESCALATION" in
+    *queued*) DETAIL="$DETAIL"$'\n\n'"An approval record was written to the \`owlgate-changes\` queue in UiPath Orchestrator — that is the request a human acts on." ;;
+  esac
 else
   ICON="❌"; HEADLINE="NO-GO — blocking"; EXIT_CODE=1
   DETAIL="The gate returned \`$VERDICT\`."
