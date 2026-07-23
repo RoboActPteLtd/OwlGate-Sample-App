@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The gate check now reports **three** outcomes instead of two — `GO`, `HOLD — human
+  sign-off required`, and `NO-GO` — so a change that scores `go` but sets
+  `needs_human` is no longer printed as "go … blocking this PR", which read as a
+  contradiction. The PR step summary now leads with the verdict headline and its
+  reason, followed by the code to review. Display only; the pass/fail logic and exit
+  codes are unchanged.
+
 ### Security
 
 - Harden the OwlGate gate workflow against GitHub Actions template injection: the PR
